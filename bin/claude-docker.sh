@@ -13,7 +13,7 @@ BUILD_DIR="${CLAUDE_DEVCONTAINER_DIR:-${HOME}/.config/claude-devcontainer}"
 # ── Parse wrapper flags (consumed here, not passed to claude) ──
 INSTANCE=""
 LIST_INSTANCES=false
-PRUNE_INSTANCE=""
+PRUNE_INSTANCE=false
 CLAUDE_ARGS=()
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -24,9 +24,7 @@ while [ $# -gt 0 ]; do
         --list)
             LIST_INSTANCES=true; shift ;;
         --prune)
-            PRUNE_INSTANCE="$2"; shift 2 ;;
-        --prune=*)
-            PRUNE_INSTANCE="${1#--prune=}"; shift ;;
+            PRUNE_INSTANCE=true; shift ;;
         *)
             CLAUDE_ARGS+=("$1"); shift ;;
     esac
@@ -39,24 +37,24 @@ if [ -n "$INSTANCE" ] && ! [[ "$INSTANCE" =~ ^[a-zA-Z0-9._-]+$ ]]; then
 fi
 
 # ── Prune a specific instance ──
-if [ -n "$PRUNE_INSTANCE" ]; then
-    if ! [[ "$PRUNE_INSTANCE" =~ ^[a-zA-Z0-9._-]+$ ]]; then
-        echo "[claude] Invalid instance name '${PRUNE_INSTANCE}': only [a-zA-Z0-9._-] allowed." >&2
+if [ "$PRUNE_INSTANCE" = true ]; then
+    if [ -z "$INSTANCE" ]; then
+        echo "[claude] --prune requires -i <instance>." >&2
         exit 1
     fi
-    _PRUNE_DIR="${BUILD_DIR}/instances/${PRUNE_INSTANCE}"
+    _PRUNE_DIR="${BUILD_DIR}/instances/${INSTANCE}"
     if [ ! -d "$_PRUNE_DIR" ]; then
-        echo "[claude] Instance '${PRUNE_INSTANCE}' not found." >&2
+        echo "[claude] Instance '${INSTANCE}' not found." >&2
         exit 1
     fi
-    _cname="claude-code-${PRUNE_INSTANCE}"
+    _cname="claude-code-${INSTANCE}"
     if docker ps -q --filter "name=^${_cname}$" 2>/dev/null | grep -q .; then
-        echo "[claude] Instance '${PRUNE_INSTANCE}' is currently running." >&2
+        echo "[claude] Instance '${INSTANCE}' is currently running." >&2
         echo "[claude] Stop it first with: docker stop ${_cname}" >&2
         exit 1
     fi
     rm -rf "$_PRUNE_DIR"
-    echo "[claude] Pruned instance '${PRUNE_INSTANCE}'." >&2
+    echo "[claude] Pruned instance '${INSTANCE}'." >&2
     exit 0
 fi
 
