@@ -43,10 +43,12 @@ fi
 # rules above only affect git's transport layer — `git remote -v` still
 # shows the original SSH URL.  So we rewrite the configured remote URLs
 # directly and restore them when the container exits.
+#
+# Set CLAUDE_NO_GIT_REWRITE=1 to skip this (e.g. when no token is configured).
 
 declare -A _SAVED=()
 
-if [ -d "${PWD}/.git" ]; then
+if [ -d "${PWD}/.git" ] && [ -z "${CLAUDE_NO_GIT_REWRITE:-}" ]; then
     for name in $(run_as git remote 2>/dev/null); do
         url=$(run_as git remote get-url "$name" 2>/dev/null) || continue
         new=""

@@ -65,6 +65,16 @@ GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-$(read_env_var GIT_AUTHOR_NAME)}"
 GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-$(read_env_var GIT_AUTHOR_EMAIL)}"
 CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-$(read_env_var CLAUDE_CODE_OAUTH_TOKEN)}"
 
+# Suppress remote URL rewriting when no git token is configured in .env
+# (tokens from keychain/global env are for auth only — rewrite only when
+# the project explicitly provides a token, or when CLAUDE_NO_GIT_REWRITE=0).
+if [ -z "${CLAUDE_NO_GIT_REWRITE:-}" ]; then
+    _has_env_token="$(read_env_var GITHUB_TOKEN)$(read_env_var GITLAB_TOKEN)$(read_env_var GIT_TOKEN)"
+    if [ -z "$_has_env_token" ]; then
+        CLAUDE_NO_GIT_REWRITE=1
+    fi
+fi
+
 ENV_ARGS=()
 [ -n "${GITHUB_TOKEN:-}" ]              && ENV_ARGS+=(-e "GITHUB_TOKEN=${GITHUB_TOKEN}")
 [ -n "${GITLAB_TOKEN:-}" ]              && ENV_ARGS+=(-e "GITLAB_TOKEN=${GITLAB_TOKEN}")
@@ -73,6 +83,7 @@ ENV_ARGS=()
 [ -n "${GIT_AUTHOR_EMAIL:-}" ]          && ENV_ARGS+=(-e "GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL}")
 [ -n "${ANTHROPIC_API_KEY:-}" ]         && ENV_ARGS+=(-e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}")
 [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]   && ENV_ARGS+=(-e "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}")
+[ -n "${CLAUDE_NO_GIT_REWRITE:-}" ]     && ENV_ARGS+=(-e "CLAUDE_NO_GIT_REWRITE=${CLAUDE_NO_GIT_REWRITE}")
 
 # ── Run ──
 # Use -t (TTY) when in a terminal, skip it when called from Emacs (pipes)
