@@ -129,7 +129,15 @@ Instance state is stored in:
 
 On first launch, credentials and config are copied from the host's
 =~/.claude/= and =~/.claude.json= so the instance starts authenticated.
-After that, each instance maintains its own state independently.
+After that, each instance maintains its own state independently —
+conversation history, project memory, and settings persist across runs.
+Re-seeding on every launch would discard all of that accumulated state.
+
+Stale instances (unused for 7 days) are pruned automatically. To force a
+fresh start, delete the instance directory:
+#+begin_src sh
+rm -rf ~/.config/claude-devcontainer/instances/kyle
+#+end_src
 
 To re-seed an instance (e.g. after re-authenticating on the host):
 #+begin_src sh
