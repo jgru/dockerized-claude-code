@@ -12,6 +12,7 @@ BUILD_DIR="${CLAUDE_DEVCONTAINER_DIR:-${HOME}/.config/claude-devcontainer}"
 
 # ── Parse wrapper flags (consumed here, not passed to claude) ──
 INSTANCE=""
+LIST_INSTANCES=false
 CLAUDE_ARGS=()
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -19,6 +20,8 @@ while [ $# -gt 0 ]; do
             INSTANCE="$2"; shift 2 ;;
         --instance=*)
             INSTANCE="${1#--instance=}"; shift ;;
+        --list)
+            LIST_INSTANCES=true; shift ;;
         *)
             CLAUDE_ARGS+=("$1"); shift ;;
     esac
@@ -28,6 +31,44 @@ set -- "${CLAUDE_ARGS[@]}"
 if [ -n "$INSTANCE" ] && ! [[ "$INSTANCE" =~ ^[a-zA-Z0-9._-]+$ ]]; then
     echo "[claude] Invalid instance name '${INSTANCE}': only [a-zA-Z0-9._-] allowed." >&2
     exit 1
+fi
+
+# ── List instances ──
+if [ "$LIST_INSTANCES" = true ]; then
+    _INSTANCE_BASE="${BUILD_DIR}/instances"
+    if [ ! -d "$_INSTANCE_BASE" ] || [ -z "$(ls -A "$_INSTANCE_BASE" 2>/dev/null)" ]; then
+        echo "No instances found." >&2
+        exit 0
+    fi
+    printf "%-20s %-10s %-20s %s\n" "INSTANCE" "STATUS" "LAST USED" "PROJECT"
+    printf "%-20s %-10s %-20s %s\n" "--------" "------" "---------" "-------"
+    for _d in "$_INSTANCE_BASE"/*/; do
+        [ -d "$_d" ] || continue
+        _name="$(basename "$_d")"
+        # Running status
+        _cname="claude-code-${_name}"
+        if docker ps -q --filter "name=^${_cname}$" 2>/dev/null | grep -q .; then
+            _status="running"
+        else
+            _status="stopped"
+        fi
+        # Last used
+        if [ -f "$_d.last-used" ]; then
+            _mtime="$(stat -c %Y "$_d.last-used" 2>/dev/null || stat -f %m "$_d.last-used")"
+            _last_used="$(date -d "@${_mtime}" '+%Y-%m-%d %H:%M' 2>/dev/null \
+                       || date -r "$_mtime" '+%Y-%m-%d %H:%M')"
+        else
+            _last_used="-"
+        fi
+        # Project (workspace)
+        if [ -f "$_d.workspace" ]; then
+            _project="$(cat "$_d.workspace")"
+        else
+            _project="-"
+        fi
+        printf "%-20s %-10s %-20s %s\n" "$_name" "$_status" "$_last_used" "$_project"
+    done
+    exit 0
 fi
 
 # ── Build if missing ──
@@ -191,6 +232,7 @@ if [ -n "$INSTANCE" ]; then
         fi
     fi
     touch "${INSTANCE_DIR}/.last-used"
+    printf '%s' "${WORKSPACE}" > "${INSTANCE_DIR}/.workspace"
     VOL_ARGS=(
         -v "${INSTANCE_DIR}/claude:/home/node/.claude-seed:ro"
         -v "${INSTANCE_DIR}/claude.json:/home/node/.claude.json.seed:ro"

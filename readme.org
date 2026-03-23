@@ -144,6 +144,18 @@ To re-seed an instance (e.g. after re-authenticating on the host):
 rm ~/.config/claude-devcontainer/instances/stan/.seeded
 #+end_src
 
+To list all instances with their associated project and status:
+#+begin_src sh
+claude-docker --list
+#+end_src
+
+#+begin_example
+INSTANCE             STATUS     LAST USED            PROJECT
+--------             ------     ---------            -------
+stan                 running    2026-03-23 14:05     /home/user/project-a
+kyle                 stopped    2026-03-21 09:30     /home/user/project-b
+#+end_example
+
 Without =--instance=, the default behaviour is unchanged: =~/.claude= is
 shared and the concurrent-instance warning remains active.
 
