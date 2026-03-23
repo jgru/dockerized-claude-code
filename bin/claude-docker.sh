@@ -163,17 +163,20 @@ if [ -n "$INSTANCE" ]; then
     INSTANCE_DIR="${BUILD_DIR}/instances/${INSTANCE}"
     mkdir -p "${INSTANCE_DIR}/claude"
     # Seed new instance with host credentials/config on first creation
-    if [ ! -f "${INSTANCE_DIR}/.seeded" ]; then
-        for f in "${HOME}/.claude"/*; do
-            [ -f "$f" ] && cp "$f" "${INSTANCE_DIR}/claude/"
-        done
-        if [ -f "${HOME}/.claude.json" ]; then
-            cp "${HOME}/.claude.json" "${INSTANCE_DIR}/claude.json"
-        else
-            echo '{}' > "${INSTANCE_DIR}/claude.json"
+    (
+        flock -n 200 || { echo "[claude] Another process is seeding instance '${INSTANCE}', waiting..." >&2; flock 200; }
+        if [ ! -f "${INSTANCE_DIR}/.seeded" ]; then
+            for f in "${HOME}/.claude"/*; do
+                [ -f "$f" ] && cp "$f" "${INSTANCE_DIR}/claude/"
+            done
+            if [ -f "${HOME}/.claude.json" ]; then
+                cp "${HOME}/.claude.json" "${INSTANCE_DIR}/claude.json"
+            else
+                echo '{}' > "${INSTANCE_DIR}/claude.json"
+            fi
+            touch "${INSTANCE_DIR}/.seeded"
         fi
-        touch "${INSTANCE_DIR}/.seeded"
-    fi
+    ) 200>"${INSTANCE_DIR}/.seed-lock"
     touch "${INSTANCE_DIR}/.last-used"
     VOL_ARGS=(
         -v "${INSTANCE_DIR}/claude:/home/node/.claude-seed:ro"
