@@ -10,6 +10,13 @@ fi
 
 export HOME="/home/node"
 
+# ── Load secrets from mounted file (not passed via env flags) ──
+if [ -f /run/secrets/env ]; then
+    set -a
+    . /run/secrets/env
+    set +a
+fi
+
 # ── Fill from read-only seed (named instances) ──
 if [ -d /home/node/.claude-seed ]; then
     mkdir -p /home/node/.claude

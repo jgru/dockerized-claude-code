@@ -90,14 +90,21 @@ if [ -z "${CLAUDE_NO_GIT_REWRITE:-}" ]; then
     fi
 fi
 
+# ── Secrets file (mounted, not visible in docker inspect / ps) ──
+SECRETS_FILE="$(mktemp)"
+chmod 600 "$SECRETS_FILE"
+trap 'rm -f "$SECRETS_FILE"' EXIT
+
+[ -n "${GITHUB_TOKEN:-}" ]              && printf '%s\n' "GITHUB_TOKEN=${GITHUB_TOKEN}"             >> "$SECRETS_FILE"
+[ -n "${GITLAB_TOKEN:-}" ]              && printf '%s\n' "GITLAB_TOKEN=${GITLAB_TOKEN}"             >> "$SECRETS_FILE"
+[ -n "${GIT_TOKEN:-}" ]                 && printf '%s\n' "GIT_TOKEN=${GIT_TOKEN}"                   >> "$SECRETS_FILE"
+[ -n "${ANTHROPIC_API_KEY:-}" ]         && printf '%s\n' "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}"   >> "$SECRETS_FILE"
+[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]   && printf '%s\n' "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}" >> "$SECRETS_FILE"
+
+# Non-secret config — safe to pass via -e
 ENV_ARGS=()
-[ -n "${GITHUB_TOKEN:-}" ]              && ENV_ARGS+=(-e "GITHUB_TOKEN=${GITHUB_TOKEN}")
-[ -n "${GITLAB_TOKEN:-}" ]              && ENV_ARGS+=(-e "GITLAB_TOKEN=${GITLAB_TOKEN}")
-[ -n "${GIT_TOKEN:-}" ]                 && ENV_ARGS+=(-e "GIT_TOKEN=${GIT_TOKEN}")
 [ -n "${GIT_AUTHOR_NAME:-}" ]           && ENV_ARGS+=(-e "GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME}")
 [ -n "${GIT_AUTHOR_EMAIL:-}" ]          && ENV_ARGS+=(-e "GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL}")
-[ -n "${ANTHROPIC_API_KEY:-}" ]         && ENV_ARGS+=(-e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}")
-[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]   && ENV_ARGS+=(-e "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}")
 [ -n "${CLAUDE_NO_GIT_REWRITE:-}" ]     && ENV_ARGS+=(-e "CLAUDE_NO_GIT_REWRITE=${CLAUDE_NO_GIT_REWRITE}")
 
 # ── Auto-prune stale instances ──
@@ -192,10 +199,11 @@ if [ -n "$INSTANCE" ] && docker ps -q --filter "name=^${CONTAINER_NAME}$" 2>/dev
     exit 1
 fi
 
-exec docker run \
+docker run \
     "${DOCKER_ARGS[@]}" \
     --name "${CONTAINER_NAME}" \
     -e CLAUDE_USER="$(id -u)" \
+    -v "${SECRETS_FILE}:/run/secrets/env:ro" \
     "${VOL_ARGS[@]}" \
     -w "${WORKSPACE}" \
     "${ENV_ARGS[@]}" \
