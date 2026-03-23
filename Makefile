@@ -1,13 +1,20 @@
 CONFIG_DIR := $(HOME)/.config/claude-devcontainer
 BIN_DIR    := $(HOME)/.local/bin
 
-.PHONY: install build test rebuild
+.PHONY: install build test rebuild help
+
+help:
+	@echo "Targets:"
+	@echo "  install  Copy files to CONFIG_DIR and BIN_DIR, then run 'make build'"
+	@echo "  build    Build the Docker image from CONFIG_DIR"
+	@echo "  rebuild  Build the Docker image without cache"
+	@echo "  test     Run the container interactively in the current directory"
 
 install:
 	mkdir -p $(CONFIG_DIR) $(BIN_DIR)
 	cp container/Dockerfile container/entrypoint.sh container/git-credential-token $(CONFIG_DIR)/
 	chmod +x $(CONFIG_DIR)/entrypoint.sh $(CONFIG_DIR)/git-credential-token
-	cp bin/claude-docker $(BIN_DIR)/claude-docker
+	cp bin/claude-docker.sh $(BIN_DIR)/claude-docker
 	chmod +x $(BIN_DIR)/claude-docker
 
 build:
