@@ -10,10 +10,10 @@ security risks).
 
 #+begin_example
 bin/
-  claude-docker.sh        Wrapper script → ~/.local/bin/claude-docker
+  claude-docker.sh        Wrapper script -> ~/.local/bin/claude-docker
 container/
   Dockerfile              Claude Code based on node 22
-  entrypoint.sh           git tokens → exec claude
+  entrypoint.sh           git tokens -> exec claude
   git-credential-token    Credential helper (reads tokens from env)
 emacs/
   claude-code-docker.el   Emacs configuration
@@ -94,7 +94,6 @@ No firewall — full network access. Protection is *filesystem isolation*: the
 container only sees the current project directory.
 
 * Emacs
-
 Load =emacs/claude-code-docker.el= (or merge into your init). It configures
 [[https://github.com/manzaltu/claude-code-ide.el][claude-code-ide]] to use the dockerized wrapper:
 

@@ -89,6 +89,17 @@ VOL_ARGS=(
 # Only mount .claude.json if it exists — Docker creates an empty directory otherwise
 [ -f "${HOME}/.claude.json" ] && VOL_ARGS+=(-v "${HOME}/.claude.json:/home/node/.claude.json")
 
+# Worktree support: mount the main repo's .git dir if workspace is a worktree
+# In a worktree, .git is a file pointing outside the workspace — git breaks without it
+if [ -f "${WORKSPACE}/.git" ]; then
+    MAIN_GIT="$(git -C "${WORKSPACE}" rev-parse --git-common-dir 2>/dev/null || true)"
+    if [ -n "${MAIN_GIT}" ]; then
+        # git-common-dir may be relative on older git versions — make it absolute
+        [[ "${MAIN_GIT}" != /* ]] && MAIN_GIT="$(cd "${WORKSPACE}" && cd "${MAIN_GIT}" && pwd)"
+        VOL_ARGS+=(-v "${MAIN_GIT}:${MAIN_GIT}")
+    fi
+fi
+
 exec docker run \
     "${DOCKER_ARGS[@]}" \
     --name "claude-code-$$" \
