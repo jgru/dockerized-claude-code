@@ -63,7 +63,6 @@ GITLAB_TOKEN="${GITLAB_TOKEN:-$(read_env_var GITLAB_TOKEN)}"
 GIT_TOKEN="${GIT_TOKEN:-$(read_env_var GIT_TOKEN)}"
 GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-$(read_env_var GIT_AUTHOR_NAME)}"
 GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-$(read_env_var GIT_AUTHOR_EMAIL)}"
-CLAUDE_FIREWALL="${CLAUDE_FIREWALL:-$(read_env_var CLAUDE_FIREWALL)}"
 CLAUDE_CODE_OAUTH_TOKEN="${CLAUDE_CODE_OAUTH_TOKEN:-$(read_env_var CLAUDE_CODE_OAUTH_TOKEN)}"
 
 ENV_ARGS=()
@@ -72,7 +71,6 @@ ENV_ARGS=()
 [ -n "${GIT_TOKEN:-}" ]                 && ENV_ARGS+=(-e "GIT_TOKEN=${GIT_TOKEN}")
 [ -n "${GIT_AUTHOR_NAME:-}" ]           && ENV_ARGS+=(-e "GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME}")
 [ -n "${GIT_AUTHOR_EMAIL:-}" ]          && ENV_ARGS+=(-e "GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL}")
-[ -n "${CLAUDE_FIREWALL:-}" ]           && ENV_ARGS+=(-e "CLAUDE_FIREWALL=${CLAUDE_FIREWALL}")
 [ -n "${ANTHROPIC_API_KEY:-}" ]         && ENV_ARGS+=(-e "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}")
 [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]   && ENV_ARGS+=(-e "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}")
 
@@ -81,11 +79,6 @@ ENV_ARGS=()
 DOCKER_ARGS=(--rm -i)
 if [ -t 0 ]; then
     DOCKER_ARGS+=(-t)
-fi
-
-# Only grant NET_ADMIN/NET_RAW when firewall is enabled
-if [ "${CLAUDE_FIREWALL:-}" = "true" ]; then
-    DOCKER_ARGS+=(--cap-add=NET_ADMIN --cap-add=NET_RAW)
 fi
 
 # Volume mounts
