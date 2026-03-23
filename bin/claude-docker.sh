@@ -56,6 +56,12 @@ fi
 if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
     GLOBAL_ENV="${HOME}/.config/claude-devcontainer/env"
     if [ -f "$GLOBAL_ENV" ]; then
+        _perms=$(stat -c %a "$GLOBAL_ENV" 2>/dev/null || stat -f %OLp "$GLOBAL_ENV")
+        if [ "$_perms" != "600" ]; then
+            echo "[claude] Error: ${GLOBAL_ENV} has mode ${_perms}, expected 600." >&2
+            echo "[claude] Fix with: chmod 600 ${GLOBAL_ENV}" >&2
+            exit 1
+        fi
         set -a
         source "$GLOBAL_ENV"
         set +a
