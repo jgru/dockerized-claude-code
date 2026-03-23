@@ -100,6 +100,24 @@ ENV_ARGS=()
 [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]   && ENV_ARGS+=(-e "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}")
 [ -n "${CLAUDE_NO_GIT_REWRITE:-}" ]     && ENV_ARGS+=(-e "CLAUDE_NO_GIT_REWRITE=${CLAUDE_NO_GIT_REWRITE}")
 
+# ── Auto-prune stale instances ──
+_INSTANCE_MAX_AGE="${CLAUDE_INSTANCE_MAX_AGE:-7}"   # days
+_INSTANCE_BASE="${BUILD_DIR}/instances"
+if [ -d "$_INSTANCE_BASE" ]; then
+    for _d in "$_INSTANCE_BASE"/*/; do
+        [ -d "$_d" ] || continue
+        _marker="$_d.last-used"
+        [ -f "$_marker" ] || _marker="$_d.seeded"
+        [ -f "$_marker" ] || continue
+        if [ -n "$(find "$_marker" -mtime +"$_INSTANCE_MAX_AGE" 2>/dev/null)" ]; then
+            _iname="$(basename "$_d")"
+            [ "$_iname" = "$INSTANCE" ] && continue
+            rm -rf "$_d"
+            echo "[claude] Pruned stale instance '${_iname}'" >&2
+        fi
+    done
+fi
+
 # ── Concurrent-instance guard ──
 # Named instances have isolated state, so only warn for unnamed instances.
 if [ -z "$INSTANCE" ]; then
