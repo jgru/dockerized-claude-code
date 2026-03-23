@@ -19,8 +19,8 @@ rebuild:
 test:
 	docker run --rm -it \
 		-e CLAUDE_USER="$$(id -u)" \
-		-v $(HOME)/.claude:/home/debian/.claude \
-		-v $(HOME)/.claude.json:/home/debian/.claude.json \
-		-v "$$PWD:$$PWD" \
+		-v $(HOME)/.claude:/home/node/.claude \
+		-v $(HOME)/.claude.json:/home/node/.claude.json \
+                -v "$$PWD:$$PWD" \
 		-w "$$PWD" \
 		claude-devcontainer
