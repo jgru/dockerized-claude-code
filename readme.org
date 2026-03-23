@@ -1,8 +1,11 @@
 #+title: Dockerized Claude Code
 
-Run Claude Code in a firewalled container, driven from Emacs.
-Git uses tokens from each project's =.env=. Works on Linux and macOS.
-Uses your existing Claude Pro auth from =~/.claude=.
+Run Claude Code in a container (also driven from Emacs) to provide
+file system isolation and protect your secrets. To do so, =git= uses
+tokens from each project's =.env=. Claude uses OAuth tokens which are
+retrieved via macOS' =keychain= (as a fallback you could read the
+token from an unencrypted text file with all the implied security
+risks).
 
 * Files
 
