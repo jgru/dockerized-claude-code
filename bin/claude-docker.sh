@@ -85,6 +85,18 @@ ENV_ARGS=()
 [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]   && ENV_ARGS+=(-e "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}")
 [ -n "${CLAUDE_NO_GIT_REWRITE:-}" ]     && ENV_ARGS+=(-e "CLAUDE_NO_GIT_REWRITE=${CLAUDE_NO_GIT_REWRITE}")
 
+# ── Concurrent-instance guard ──
+# Warn if another container is already running with this exact workspace mounted.
+_CONFLICT=$(docker ps --filter "name=claude-code-" --format "{{.ID}} {{.Names}}" 2>/dev/null \
+    | while read -r _id _name; do
+        docker inspect "$_id" --format '{{range .Mounts}}{{.Source}} {{end}}' 2>/dev/null \
+            | grep -qF "${WORKSPACE}" && echo "$_name"
+    done)
+if [ -n "$_CONFLICT" ]; then
+    echo "[claude] Warning: another claude-docker is already running in this directory ($_CONFLICT)." >&2
+    echo "[claude] Two instances sharing the same workspace can cause git remote conflicts." >&2
+fi
+
 # ── Run ──
 # Use -t (TTY) when in a terminal, skip it when called from Emacs (pipes)
 DOCKER_ARGS=(--rm -i)

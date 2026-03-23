@@ -47,29 +47,44 @@ fi
 # Set CLAUDE_NO_GIT_REWRITE=1 to skip this (e.g. when no token is configured).
 
 declare -A _SAVED=()
+_DID_REWRITE=false
 
 if [ -d "${PWD}/.git" ] && [ -z "${CLAUDE_NO_GIT_REWRITE:-}" ]; then
-    for name in $(run_as git remote 2>/dev/null); do
-        url=$(run_as git remote get-url "$name" 2>/dev/null) || continue
-        new=""
-        case "$url" in
-            git@github.com:*)       [ -n "${GITHUB_TOKEN:-}" ] && new="https://github.com/${url#git@github.com:}" ;;
-            ssh://git@github.com/*) [ -n "${GITHUB_TOKEN:-}" ] && new="https://github.com/${url#ssh://git@github.com/}" ;;
-            git@gitlab.com:*)       [ -n "${GITLAB_TOKEN:-}" ] && new="https://gitlab.com/${url#git@gitlab.com:}" ;;
-            ssh://git@gitlab.com/*) [ -n "${GITLAB_TOKEN:-}" ] && new="https://gitlab.com/${url#ssh://git@gitlab.com/}" ;;
-        esac
-        if [ -n "$new" ]; then
-            _SAVED[$name]="$url"
-            run_as git remote set-url "$name" "$new"
-            echo "[git] Rewrote remote '$name' → HTTPS"
-        fi
-    done
+    # Use an exclusive flock so only the first concurrent container rewrites
+    # remote URLs.  Subsequent containers see the lock is held and skip both
+    # the rewrite and the restore — preventing them from flipping URLs back
+    # to SSH while the first container is still running.
+    _LOCK="${PWD}/.git/claude-docker-rewrite.lock"
+    exec 9>"$_LOCK"
+    if flock -n 9; then
+        _DID_REWRITE=true
+        for name in $(run_as git remote 2>/dev/null); do
+            url=$(run_as git remote get-url "$name" 2>/dev/null) || continue
+            new=""
+            case "$url" in
+                git@github.com:*)       [ -n "${GITHUB_TOKEN:-}" ] && new="https://github.com/${url#git@github.com:}" ;;
+                ssh://git@github.com/*) [ -n "${GITHUB_TOKEN:-}" ] && new="https://github.com/${url#ssh://git@github.com/}" ;;
+                git@gitlab.com:*)       [ -n "${GITLAB_TOKEN:-}" ] && new="https://gitlab.com/${url#git@gitlab.com:}" ;;
+                ssh://git@gitlab.com/*) [ -n "${GITLAB_TOKEN:-}" ] && new="https://gitlab.com/${url#ssh://git@gitlab.com/}" ;;
+            esac
+            if [ -n "$new" ]; then
+                _SAVED[$name]="$url"
+                run_as git remote set-url "$name" "$new"
+                echo "[git] Rewrote remote '$name' → HTTPS"
+            fi
+        done
+    else
+        echo "[git] Another claude-docker holds the rewrite lock; skipping remote URL rewrite" >&2
+    fi
 fi
 
 restore_remotes() {
-    for name in "${!_SAVED[@]}"; do
-        run_as git remote set-url "$name" "${_SAVED[$name]}" 2>/dev/null || true
-    done
+    if $_DID_REWRITE; then
+        for name in "${!_SAVED[@]}"; do
+            run_as git remote set-url "$name" "${_SAVED[$name]}" 2>/dev/null || true
+        done
+    fi
+    # fd 9 (flock) is released automatically when the process exits
 }
 
 # ── Run claude, then restore remotes ──────────────────────────────────

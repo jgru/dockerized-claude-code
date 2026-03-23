@@ -88,6 +88,22 @@ echo "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-...." > ~/.config/claude-devcontainer/env
 chmod 600 ~/.config/claude-devcontainer/env
 #+end_src
 
+* Git remote rewriting
+
+When a git token is present in the project =.env=, SSH remote URLs are
+automatically rewritten to HTTPS so Claude Code can push from inside the
+container (which has no SSH client).
+
+When =.env= is absent or contains no git token, rewriting is skipped
+automatically. You can also control this explicitly:
+
+#+begin_src conf
+CLAUDE_NO_GIT_REWRITE=1   # always skip rewriting (even if a token is set)
+CLAUDE_NO_GIT_REWRITE=0   # always rewrite (even without a token in .env)
+#+end_src
+
+Set this in your shell environment or in the project =.env=.
+
 * Network
 
 No firewall — full network access. Protection is *filesystem isolation*: the
