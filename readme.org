@@ -1,0 +1,93 @@
+#+title: Dockerized Claude Code
+
+Run Claude Code in a firewalled container, driven from Emacs.
+Git uses tokens from each project's =.env=. Works on Linux and macOS.
+Uses your existing Claude Pro auth from =~/.claude=.
+
+* Files
+
+| File                   | Description                                   |
+|------------------------+-----------------------------------------------|
+| =Dockerfile=           | Claude Code based on node 22                  |
+| =entrypoint.sh=        | git tokens → exec claude                      |
+| =git-credential-token= | Credential helper (reads tokens from env)     |
+| =claude-docker=        | Wrapper script → =~/.local/bin/claude-docker= |
+| =emacs-config.el=      | Emacs configuration                           |
+| =env.example=          | Template =.env= for projects                  |
+
+* Setup
+
+Just use the supplied Makefile:
+#+begin_src sh
+make build && make install
+#+end_src
+
+/Alternatively, do the following:/
+#+begin_src bash
+# 1. Copy files
+mkdir -p ~/.config/claude-devcontainer
+cp Dockerfile entrypoint.sh git-credential-token \
+   ~/.config/claude-devcontainer/
+
+# 2. Build
+docker build -t claude-devcontainer ~/.config/claude-devcontainer/
+
+# 3. Install wrapper
+cp claude-docker ~/.local/bin/claude-docker
+chmod +x ~/.local/bin/claude-docker
+
+# 4. Test it
+docker run --rm -it \
+    -e CLAUDE_USER="$(id -u)" \
+    -v ~/.claude:/home/debian/.claude \
+    -v ~/.claude.json:/home/debian/.claude.json \
+    -v "${PWD}:${PWD}" \
+    -w "${PWD}" \
+    claude-devcontainer
+
+# 5. Merge emacs-config.el into your init
+
+# 6. Add token to your project
+cd ~/your-project
+cp /path/to/env.example .env   # paste your token
+echo '.env' >> .gitignore
+#+end_src
+
+* Per-project .env
+
+#+begin_src conf
+GITHUB_TOKEN=ghp_xxx
+# GITLAB_TOKEN=glpat-xxx
+# GIT_AUTHOR_NAME=Your Name
+# GIT_AUTHOR_EMAIL=you@example.com
+# CLAUDE_FIREWALL=true
+#+end_src
+
+* OAuth
+
+The OAuth token is either read from Keychain (via =security find-generic-password -s 'Claude Code-credentials' -w 2>/dev/null=) or read from a file =.config/claude-devcontainer/env=. Since the credentials would be stored in clear in this file, it is recommended to use macOS' keychain.
+
+*Less secure variant:*
+In case you /cannot/ use keychain, create an OAuth token and proceed as follows:
+#+begin_src bash
+# Create creds
+claude setup-token
+
+# then copy
+echo "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-...." > ~/.config/claude-devcontainer/env
+chmod 600 ~/.config/claude-devcontainer/env
+#+end_src
+
+* Network
+No firewall atm, full network access. Your protection is *filesystem isolation* — the container only sees your project.
+
+* For use with Emacs
+The key is to set =claude-code-ide-cli-command= to point to the dockerized Claude Code:
+
+#+begin_src emacs-lisp
+(setq claude-code-ide-cli-command (expand-file-name "~/.local/bin/claude-docker"))
+#+end_src
+
+- =C-c C-'= — opens Claude Code menu
+- =M-x claude-init-env= — scaffolds =.env= + adds it to =.gitignore=
+
