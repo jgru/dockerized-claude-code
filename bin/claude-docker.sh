@@ -25,6 +25,8 @@ while [ $# -gt 0 ]; do
             LIST_INSTANCES=true; shift ;;
         --prune)
             PRUNE_INSTANCE=true; shift ;;
+        --version|-V)
+            echo "claude-docker (claude-code-container wrapper)"; exit 0 ;;
         *)
             CLAUDE_ARGS+=("$1"); shift ;;
     esac
