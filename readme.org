@@ -48,7 +48,7 @@ chmod +x ~/.local/bin/claude-docker
 # 4. Test it
 make test
 
-# 5. Merge emacs/claude-code-docker.el into your Emacs init
+# 5. Add to your Emacs init (see Emacs section below)
 
 # 6. Add token to your project
 cd ~/your-project
@@ -165,12 +165,53 @@ No firewall — full network access. Protection is *filesystem isolation*: the
 container only sees the current project directory.
 
 * Emacs
-Load =emacs/claude-code-docker.el= (or merge into your init). It configures
-[[https://github.com/manzaltu/claude-code-ide.el][claude-code-ide]] to use the dockerized wrapper:
+
+=emacs/claude-code-docker.el= integrates
+[[https://github.com/manzaltu/claude-code-ide.el][claude-code-ide]] with the dockerized wrapper. It supports named
+instances and an optional native (non-dockerized) mode.
+
+** Installation
+
+With =use-package= + =straight.el= (recommended):
 
 #+begin_src emacs-lisp
-(setq claude-code-ide-cli-command (expand-file-name "~/.local/bin/claude-docker"))
+(use-package claude-code-docker
+  :straight (:type git :host github :repo "jgru/claude-code-container"
+             :files ("emacs/claude-code-docker.el")))
 #+end_src
 
-- =C-c C-'= — open Claude Code menu
-- =M-x claude-init-env= — scaffold =.env= and add it to =.gitignore=
+Or load from a local checkout:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "/path/to/claude-code-container/emacs")
+(require 'claude-code-docker)
+#+end_src
+
+** Commands
+
+| Key / command                        | Description                                   |
+|--------------------------------------+-----------------------------------------------|
+| =C-c C-'=                           | Open Claude Code menu                         |
+| =M-x claude-docker-start=           | Start Claude with a named instance (completing)|
+| =M-x claude-docker-set-instance=    | Set instance name for the current buffer      |
+| =M-x claude-docker-list-instances=  | List all instances with status                |
+| =M-x claude-docker-prune-instance=  | Prune a stopped instance                      |
+| =M-x claude-docker-toggle-docker=   | Toggle between Docker and native CLI          |
+| =M-x claude-init-env=               | Scaffold =.env= and add it to =.gitignore=   |
+
+** Per-project instance name
+
+Set a default instance per project via =.dir-locals.el=:
+
+#+begin_src emacs-lisp
+((nil . ((claude-docker-instance . "stan"))))
+#+end_src
+
+** Customization
+
+| Variable                        | Default                        | Description                      |
+|---------------------------------+--------------------------------+----------------------------------|
+| =claude-docker-cli=             | =~/.local/bin/claude=          | Path to the Docker wrapper       |
+| =claude-docker-bare-cli=        | =claude=                       | Path to the native CLI           |
+| =claude-docker-use-docker=      | =t=                            | Use Docker wrapper when non-nil  |
+| =claude-docker-instances-dir=   | =~/.config/claude-devcontainer/instances/= | Instance state directory |
