@@ -74,7 +74,7 @@ fi
 
 _REWRITE_DIR=""
 
-if [ -d "${PWD}/.git" ] && [ -z "${CLAUDE_NO_GIT_REWRITE:-}" ]; then
+if [ -d "${PWD}/.git" ] && [ "${CLAUDE_NO_GIT_REWRITE:-}" != "1" ]; then
     _REWRITE_DIR="${PWD}/.git/claude-docker-rewrite"
     mkdir -p "$_REWRITE_DIR"
     _LOCK="${_REWRITE_DIR}/lock"
@@ -141,6 +141,29 @@ cleanup() {
     flock -u 9
 }
 
+# ── IDE integration: bridge loopback → host ──────────────────────────
+# Emacs runs a WebSocket MCP server on host 127.0.0.1:$CLAUDE_CODE_SSE_PORT.
+# With --network host on native Linux the loopback is shared and Claude Code
+# connects directly.  On Docker Desktop (macOS/Windows) --network host may
+# be a no-op; we forward the port via host.docker.internal so the connection
+# still succeeds.  If the port is already reachable (true --network host)
+# the bind fails harmlessly.
+if [ -n "${CLAUDE_CODE_SSE_PORT:-}" ] && [ -n "${ENABLE_IDE_INTEGRATION:-}" ]; then
+    _HOST_IP=$(getent hosts host.docker.internal 2>/dev/null | awk '{print $1}')
+    if [ -n "$_HOST_IP" ]; then
+        gosu "$RUN_UID" node -e "
+          var n=require('net'),p=${CLAUDE_CODE_SSE_PORT},h='${_HOST_IP}';
+          var s=n.createServer(function(c){
+            var u=n.connect(p,h);
+            c.pipe(u);u.pipe(c);
+            c.on('error',function(){u.destroy()});
+            u.on('error',function(){c.destroy()});
+          });
+          s.on('error',function(){});
+          s.listen(p,'127.0.0.1');
+        " &
+    fi
+fi
 # ── Run claude, then clean up ─────────────────────────────────────────
 # Cannot use exec — the EXIT trap must fire to restore remotes.
 trap cleanup EXIT
