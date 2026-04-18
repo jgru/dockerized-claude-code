@@ -37,10 +37,13 @@ via .dir-locals.el:
 (put 'claude-code-ide-ext-instance 'safe-local-variable #'stringp)
 
 (defcustom claude-code-ide-ext-models
-  '("sonnet" "opus" "haiku")
+  '("sonnet" "opus" "haiku"
+    "claude-opus-4-7" "claude-opus-4-6"
+    "claude-sonnet-4-6" "claude-sonnet-4-5"
+    "claude-haiku-4-5")
   "Completion candidates for `claude-code-ide-ext-set-model'.
-Short aliases accepted by the Claude Code CLI. Full model IDs
-(e.g. \"claude-opus-4-7\") may also be entered."
+Includes short aliases and versioned model IDs accepted by the
+Claude Code CLI. Any other value may also be entered manually."
   :type '(repeat string))
 
 (defvar-local claude-code-ide-ext-model nil
