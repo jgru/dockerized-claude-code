@@ -36,6 +36,21 @@ via .dir-locals.el:
   ((nil . ((claude-code-ide-ext-instance . \"stan\")))))")
 (put 'claude-code-ide-ext-instance 'safe-local-variable #'stringp)
 
+(defcustom claude-code-ide-ext-models
+  '("sonnet" "opus" "haiku")
+  "Completion candidates for `claude-code-ide-ext-set-model'.
+Short aliases accepted by the Claude Code CLI. Full model IDs
+(e.g. \"claude-opus-4-7\") may also be entered."
+  :type '(repeat string))
+
+(defvar-local claude-code-ide-ext-model nil
+  "Model to pass to Claude Code via --model for the current buffer/project.
+When nil, the CLI default is used. Set interactively with
+`claude-code-ide-ext-set-model' or per-project via .dir-locals.el:
+
+  ((nil . ((claude-code-ide-ext-model . \"opus\")))))")
+(put 'claude-code-ide-ext-model 'safe-local-variable #'stringp)
+
 ;;; Package setup
 
 (add-to-list 'exec-path (expand-file-name "~/.local/bin"))
@@ -64,16 +79,19 @@ via .dir-locals.el:
     claude-code-ide-ext-bare-cli))
 
 (defun claude-code-ide-ext--inject-flags (&rest _)
-  "Set `claude-code-ide-cli-path' and inject instance flag before launch."
+  "Set `claude-code-ide-cli-path' and inject instance/model flags before launch."
   (setq claude-code-ide-cli-path (claude-code-ide-ext--effective-cli))
   (let ((base (or claude-code-ide-cli-extra-flags "")))
-    ;; Strip any prior -i flag
+    ;; Strip any prior -i / --model flags we may have injected
     (setq base (string-trim (replace-regexp-in-string "-i +[^ ]+" "" base)))
-    (setq claude-code-ide-cli-extra-flags
-          (if (and claude-code-ide-ext-instance claude-code-ide-ext-use-docker)
-              (string-trim (concat (format "-i %s" claude-code-ide-ext-instance)
-                                   " " base))
-            base))))
+    (setq base (string-trim (replace-regexp-in-string "--model +[^ ]+" "" base)))
+    (let ((parts (list base)))
+      (when (and claude-code-ide-ext-instance claude-code-ide-ext-use-docker)
+        (push (format "-i %s" claude-code-ide-ext-instance) parts))
+      (when claude-code-ide-ext-model
+        (push (format "--model %s" claude-code-ide-ext-model) parts))
+      (setq claude-code-ide-cli-extra-flags
+            (string-trim (mapconcat #'identity (delq nil parts) " "))))))
 
 (dolist (fn '(claude-code-ide claude-code-ide-continue claude-code-ide-resume))
   (advice-add fn :before #'claude-code-ide-ext--inject-flags))
@@ -96,6 +114,15 @@ via .dir-locals.el:
   (setq-local claude-code-ide-ext-instance
               (if (string-empty-p instance) nil instance))
   (claude-code-ide))
+
+(defun claude-code-ide-ext-set-model (model)
+  "Set the Claude MODEL for the current buffer (passed as --model).
+Empty input clears the override so the CLI default is used."
+  (interactive
+   (list (completing-read "Model (empty for default): "
+                          claude-code-ide-ext-models nil nil)))
+  (setq-local claude-code-ide-ext-model (if (string-empty-p model) nil model))
+  (message "Claude model: %s" (or claude-code-ide-ext-model "default")))
 
 (defun claude-code-ide-ext-list-instances ()
   "Show all Claude instances in a buffer."
